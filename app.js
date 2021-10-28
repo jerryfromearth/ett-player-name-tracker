@@ -4,7 +4,7 @@ const fetch = require("node-fetch");
 const fs = require("fs").promises;
 
 let dbFile = "db.json";
-const INTERVAL_MINUTES = 1;
+const INTERVAL_MINUTES = 10;
 let mapUsers = new Map();
 
 function parseSnapshot(json) {
