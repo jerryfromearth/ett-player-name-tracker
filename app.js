@@ -5,6 +5,7 @@ const fs = require("fs").promises;
 
 let dbFile = "db.json";
 const INTERVAL_MINUTES = 1;
+let mapUsers = new Map();
 
 function parseSnapshot(json) {
   let users = json.OnlineUses.map((user) => {
@@ -18,19 +19,10 @@ function parseSnapshot(json) {
   return users;
 }
 
-async function loadAndParse() {
+async function track() {
   console.log(new Date().toISOString());
 
-  // Parse users from json
-  let users = [];
-  try {
-    let fileContent = await fs.readFile(dbFile, "utf8");
-    users = JSON.parse(fileContent);
-  } catch (error) {
-    console.log(error);
-  }
-
-  console.log("Users in file:", users.length);
+  console.log("Poll start - currently tracked users:", mapUsers.size);
 
   // Fetch new_users
   let onlineUsers = [];
@@ -50,15 +42,15 @@ async function loadAndParse() {
 
   // Merge new_users into users
   onlineUsers.forEach((newUser) => {
-    let existingUsers = users.filter((user) => user.Id === newUser.Id);
-    if (existingUsers.length === 0) {
-      users.push(newUser);
+    let existingUser = mapUsers.get(newUser.Id);
+    if (existingUser === undefined) {
+      mapUsers.set(newUser.Id, newUser);
       console.log(`Adding new user: ${newUser.UserName}`);
     } else {
-      let existingUser = existingUsers[0];
       if (newUser.UserName !== existingUser.UserName) {
         existingUser.UserName = newUser.UserName;
         existingUser.History.push(newUser.History[0]);
+        mapUsers.set(existingUser.Id, existingUser);
         console.log(
           `Found new username!\n${JSON.stringify(existingUser, null, 2)}`
         );
@@ -66,10 +58,40 @@ async function loadAndParse() {
     }
   });
 
-  console.log("Tracked users:", users.length);
+  console.log("Poll end - Currently tracked users:", mapUsers.size);
 
-  await fs.writeFile(dbFile, JSON.stringify(users, null, 2));
+  let users = [];
+  for (const [Id, user] of mapUsers) {
+    users.push(mapUsers.get(Id));
+  }
+
+  users = users.sort((user1, user2) => {
+    return user2.History.length - user1.History.length;
+  });
+  console.log(
+    `Current champion:\n${
+      users.length == 0 ? "" : JSON.stringify(users[0], null, 2)
+    }`
+  );
+
+  await fs.writeFile(dbFile, JSON.stringify(users, null, 2), "utf8");
+  console.log("");
 }
 
-loadAndParse();
-setInterval(loadAndParse, 1000 * 60 * INTERVAL_MINUTES);
+async function main() {
+  // Parse users from json
+  try {
+    let fileContent = await fs.readFile(dbFile, "utf8");
+    let users = JSON.parse(fileContent);
+    for (const user of users) {
+      mapUsers.set(user.Id, user);
+    }
+  } catch (error) {
+    console.log(error);
+  }
+
+  track();
+  setInterval(track, 1000 * 60 * INTERVAL_MINUTES);
+}
+
+main();
