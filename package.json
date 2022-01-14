@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "lodash": "^4.17.21",
-    "node-fetch": "^2.6.1"
+    "node-fetch": "^2.6.1",
+    "sqlite": "^4.0.23",
+    "sqlite3": "^4.2.0"
   }
 }
